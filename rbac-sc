@@ -1,0 +1,134 @@
+pragma solidity >0.5.99 <0.8.0;
+
+contract RBACSC {
+    
+    bool public status;
+    address public owner;
+    string public organizationName;
+    uint public numberOfUsers;
+    uint public numberOfEndorsees;
+    mapping (address => uint) public userId;
+    mapping (address => uint) public endorsedUserId;
+    User[99] public users;
+    Endorse[99] public endorsedUsers;
+    
+    event UserAdded(address UserAddress, string UserRole, string UserNotes);
+    event UserUpdated(address UserAddress, string UserRole, string UserNotes);
+    event UserRemoved(address UserAddress);
+    event UserEndorsed(address Endorser, address Endorsee);
+    event EndorseeRemoved(address UserAddress);
+    event StatusChanged(string Status);
+    
+    struct User {
+        address user;
+        string role;
+        string notes;
+        uint userSince;
+    }
+    
+    struct Endorse {
+        address endorser;
+        address endorsee;
+        string notes;
+        uint endorseeSince;
+    }
+    
+    modifier onlyOwner {
+        require(msg.sender == owner);
+        _;
+    }
+    
+    modifier onlyUsers {
+        require((userId[msg.sender] != 0) || msg.sender == owner);
+        _;
+    }
+    
+    constructor (string memory enterOrganizationName) public {
+        owner = msg.sender;
+        status = true;
+        numberOfUsers = 0;
+        addUser(owner, 'Creator and Owner of Smart Contract', "");
+        organizationName = enterOrganizationName;
+        numberOfEndorsees = 0;
+        addEndorsee(owner, "Creator and Owner of Smart Contract");
+    }
+    
+    function addUser(address userAddress, string memory userRole, string memory userNotes) onlyOwner public {
+        require(status = true);
+        uint id = userId[userAddress];
+        if (id == 0) {
+            userId[userAddress] = numberOfUsers;
+            id = numberOfUsers;
+            users[id] = User({user: userAddress, userSince: block.timestamp, role: userRole, notes: userNotes});
+            emit UserAdded(userAddress, userRole, userNotes);
+            numberOfUsers++;
+        }
+        else {
+            users[id] = User({user: userAddress, userSince: block.timestamp, role: userRole, notes: userNotes});
+            emit UserUpdated(userAddress, userRole, userNotes);
+        }
+    }
+    
+    function addEndorsee(address endorseeAddress, string memory endorseNotes) onlyUsers public {
+        require(status = true);
+        uint eid = endorsedUserId[endorseeAddress];
+        if (eid == 0) {
+            endorsedUserId[endorseeAddress] = numberOfEndorsees;
+            eid = numberOfEndorsees;
+            endorsedUsers[eid] = Endorse({endorser: msg.sender, endorsee: endorseeAddress, notes: endorseNotes, endorseeSince: block.timestamp});
+            emit UserEndorsed(msg.sender, endorseeAddress);
+            numberOfEndorsees++;
+        }
+        else
+        {
+            endorsedUsers[eid] = Endorse({endorser: msg.sender, endorsee: endorseeAddress, notes: endorseNotes, endorseeSince: block.timestamp});
+            emit UserEndorsed(msg.sender, endorseeAddress);
+        }
+    }
+    
+    function removeUser(address userAddress) onlyOwner public {
+        require(status = true);
+        require(userId[userAddress] != 0);
+        address ad;
+        for (uint i = userId[userAddress]; i<numberOfUsers-1; i++){
+            users[i] = users[i+1];
+            ad = users[i].user;
+            userId[ad] = i;
+        }
+        delete users[numberOfUsers-1];
+        emit UserRemoved(userAddress);
+        numberOfUsers--;
+        userId[userAddress] = 0;
+    }
+    
+    function removeEndorsee(address endorseeAddress) onlyUsers public {
+        require(status = true);
+        require(endorsedUserId[endorseeAddress] != 0);
+        Endorse storage p = endorsedUsers[endorsedUserId[endorseeAddress]];
+        require(p.endorser==msg.sender);  
+        address ead;
+        for (uint i = endorsedUserId[endorseeAddress]; i<numberOfEndorsees-1; i++){
+            endorsedUsers[i] = endorsedUsers[i+1];
+            ead = endorsedUsers[i].endorsee;
+            endorsedUserId[ead] = i;
+        }
+        delete endorsedUsers[numberOfEndorsees-1];
+        emit EndorseeRemoved(endorseeAddress);
+        numberOfEndorsees--;
+        endorsedUserId[endorseeAddress] = 0;
+    }
+    
+    function changeStatus (bool deactivate) onlyOwner public {
+        if (deactivate)
+        {status = false;}
+        emit StatusChanged("Smart Contract Deactivated");
+    }
+  
+    function getNumberOfUsers() public view returns (uint256) {
+        return numberOfUsers - 1;
+    }
+    
+    function getNumberOfEndorsees() public view returns (uint256) {
+        return numberOfEndorsees - 1;
+    }
+}
